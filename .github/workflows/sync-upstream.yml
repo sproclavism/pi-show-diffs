@@ -1,0 +1,86 @@
+# Keeps the `personal` branch (upstream + personal patches) rebased on
+# xRyul/pi-show-diffs. pi installs `git:github.com/sproclavism/pi-show-diffs@personal`,
+# so `pi update --extensions` picks up the result.
+#
+# - Runs monthly (and manually via "Run workflow").
+# - Fails (and GitHub emails you) if the rebase conflicts or typecheck fails;
+#   nothing is pushed in that case. Fix locally:
+#     git fetch upstream && git switch personal && git rebase upstream/main
+#     npm run typecheck && git push --force-with-lease
+# - Lives on `main` on purpose: scheduled workflows only run from the default
+#   branch, and GITHUB_TOKEN may not push commits touching .github/workflows,
+#   so `personal` must stay free of workflow files.
+name: Sync personal with upstream
+
+on:
+  schedule:
+    - cron: "17 6 1 * *" # 06:17 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the rebased branch
+  actions: write # keepalive: re-enable this workflow
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: https://github.com/xRyul/pi-show-diffs.git
+  UPSTREAM_BRANCH: main
+  BRANCH: personal
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      - name: Rebase onto upstream
+        id: rebase
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream "$UPSTREAM_BRANCH"
+
+          if git merge-base --is-ancestor "upstream/$UPSTREAM_BRANCH" HEAD; then
+            echo "Already up to date with upstream."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "New upstream commits:"
+          git log --oneline "HEAD..upstream/$UPSTREAM_BRANCH"
+          if ! git rebase "upstream/$UPSTREAM_BRANCH"; then
+            git rebase --abort
+            echo "::error::Rebase onto upstream/$UPSTREAM_BRANCH conflicts; resolve locally."
+            exit 1
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        if: steps.rebase.outputs.changed == 'true'
+        with:
+          node-version: 22
+
+      - name: Typecheck
+        if: steps.rebase.outputs.changed == 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+
+      - name: Push
+        if: steps.rebase.outputs.changed == 'true'
+        run: git push --force-with-lease origin "HEAD:$BRANCH"
+
+      # Scheduled workflows are disabled after 60 days without repo activity.
+      # Re-enabling via the API resets that timer without dummy commits.
+      - name: Keepalive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/sync-upstream.yml/enable"
