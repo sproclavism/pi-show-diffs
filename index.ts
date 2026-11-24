@@ -109,6 +109,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			toggleMode: "Toggle mode",
 			toggleWrap: "Toggle wrap",
 			toggleExpand: "Toggle expand",
+			toggleHidden: "Hide/show diff",
 			contextMore: "More context",
 			contextLess: "Less context",
 		};

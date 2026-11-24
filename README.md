@@ -83,6 +83,7 @@ Command args:
 - `[` / `]` - alternate context controls
 - `w` - toggle wrapping
 - `Ctrl+F` - when expandable layout is enabled, open/collapse the expanded overlay
+- `Alt+H` - temporarily hide the diff overlay to read the conversation behind it (overlay layout). While hidden, transcript scrolling, mouse wheel and search keep working; other keys are blocked so nothing is typed or submitted, and a status hint shows the review is still pending. Press `Alt+H` or `Esc` to bring the diff back. Rebind via the `toggleHidden` keybinding.
 
 ## Config
 

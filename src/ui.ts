@@ -3,13 +3,16 @@ import { t } from "./i18n.js";
 import {
     CURSOR_MARKER,
     Editor,
+    isKeyRelease,
     matchesKey,
     truncateToWidth,
     visibleWidth,
     wrapTextWithAnsi,
     type Component,
+    type OverlayHandle,
     type SizeValue,
     type KeyId,
+    type TUI,
 } from "@earendil-works/pi-tui";
 
 import {
@@ -338,6 +341,8 @@ class DiffViewer implements Component {
     private readonly cursorlessRowCache = new Map<string, RenderedCell>();
     private readonly gapLineCache = new Map<string, string>();
     private readonly kb: DiffKeybindings;
+    /** Set by the host when the viewer lives in an overlay that can be hidden. */
+    hideAvailable: () => boolean = () => false;
 
     constructor(
         private readonly tui: { terminal: { rows: number } },
@@ -821,6 +826,7 @@ class DiffViewer implements Component {
             fmt(kb.toggleWrap, "wrap"),
             this.allowAfterEdit ? fmt(kb.editInline, t("ui.footerEditAction", "edit")) : null,
             this.expandableLayoutHint ? fmt(kb.toggleExpand, this.expandedView ? t("ui.footerCollapseAction", "collapse") : t("ui.footerExpandAction", "expand")) : null,
+            this.hideAvailable() ? fmt(kb.toggleHidden, t("ui.footerHideAction", "hide")) : null,
             fmt(kb.approve, t("ui.footerApproveAction", "approve")),
             fmt(kb.reject, t("ui.footerRejectAction", "reject")),
             fmt(kb.steer, t("ui.footerSteerAction", "steer")),
@@ -1536,6 +1542,84 @@ function isRpcMode(ctx: ExtensionContext): boolean {
     return ctx.ui.getAllThemes().length === 0;
 }
 
+const HIDDEN_STATUS_KEY = "pi-show-diffs-hidden";
+
+interface HideController {
+    /** Whether hiding is possible (overlay handle received and a key is bound). */
+    readonly available: boolean;
+    setHandle(handle: OverlayHandle): void;
+    hide(): void;
+    dispose(): void;
+}
+
+/**
+ * Temporarily hides the diff overlay so the transcript behind it can be read.
+ *
+ * While hidden, pi's own transcript navigation (scroll keys, mouse wheel,
+ * search) keeps working because the fullscreen viewport consumes that input
+ * before extension listeners see it. Everything else that would reach the
+ * main editor is swallowed, so nothing is typed or submitted while the review
+ * is pending. The toggle key or Esc brings the diff back.
+ */
+function createHideController(
+    ctx: ExtensionContext,
+    tui: TUI,
+    theme: Theme,
+    kb: DiffKeybindings,
+    matchesBinding: (data: string, binding: string[] | false | undefined) => boolean,
+): HideController {
+    let handle: OverlayHandle | undefined;
+    let unsubscribe: (() => void) | undefined;
+    let hiddenFocus: unknown;
+    // getFocusedComponent() is not in older pi-tui typings; fall back to blocking all input.
+    const getFocused = (): unknown => (tui as { getFocusedComponent?: () => unknown }).getFocusedComponent?.();
+
+    const cleanup = () => {
+        unsubscribe?.();
+        unsubscribe = undefined;
+        ctx.ui.setStatus(HIDDEN_STATUS_KEY, undefined);
+    };
+
+    const show = () => {
+        cleanup();
+        if (handle?.isHidden()) handle.setHidden(false);
+        tui.requestRender();
+    };
+
+    return {
+        get available() {
+            return Boolean(handle && kb.toggleHidden && kb.toggleHidden.length > 0);
+        },
+        setHandle(next: OverlayHandle) {
+            handle = next;
+        },
+        hide() {
+            if (!handle || handle.isHidden() || !kb.toggleHidden || kb.toggleHidden.length === 0) return;
+            handle.setHidden(true);
+            hiddenFocus = getFocused();
+            const keys = kb.toggleHidden.join("/");
+            ctx.ui.setStatus(
+                HIDDEN_STATUS_KEY,
+                theme.fg("warning", t("ui.hiddenStatus", "diff review pending: {keys} to show", { keys })),
+            );
+            unsubscribe = ctx.ui.onTerminalInput((data) => {
+                // Swallow key releases (e.g. of the key that hid the overlay).
+                if (isKeyRelease(data)) return { consume: true };
+                if (matchesBinding(data, kb.toggleHidden) || matchesKey(data, "escape")) {
+                    show();
+                    return { consume: true };
+                }
+                // Something else took focus (e.g. transcript search): let it work.
+                const focused = getFocused();
+                if (focused !== undefined && focused !== hiddenFocus) return undefined;
+                return { consume: true };
+            });
+            tui.requestRender();
+        },
+        dispose: cleanup,
+    };
+}
+
 function parsePercentOption(value: string | undefined, fallback: number): number {
     const match = value?.trim().match(/^(\d+(?:\.\d+)?)%?$/);
     if (!match) return fallback;
@@ -1653,6 +1737,8 @@ export async function reviewChangePreview(
     }
 
     if (!expandableLayout) {
+        let hider: HideController | undefined;
+        let overlayHandle: OverlayHandle | undefined;
         const decision = await ctx.ui.custom<DiffDecision>(
             (tui, theme, _kb, done) => {
                 const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView, pageScroll);
@@ -1660,6 +1746,10 @@ export async function reviewChangePreview(
                 const previousShowHardwareCursor = tui.getShowHardwareCursor();
                 const syncCursorMode = () => tui.setShowHardwareCursor(viewer.isEditingInline() || previousShowHardwareCursor);
                 syncCursorMode();
+                const hideController = createHideController(ctx, tui, theme, kb, matchesBinding);
+                hider = hideController;
+                if (overlayHandle) hideController.setHandle(overlayHandle);
+                viewer.hideAvailable = () => hideController.available;
 
                 return {
                     render: (width: number) => framed.render(width),
@@ -1673,6 +1763,10 @@ export async function reviewChangePreview(
                             return;
                         }
 
+                        if (matchesBinding(data, kb.toggleHidden)) {
+                            hideController.hide();
+                            return;
+                        }
                         if (matchesBinding(data, kb.approve)) {
                             done(approvedDecisionFromViewer(viewer, "approve"));
                             return;
@@ -1695,7 +1789,10 @@ export async function reviewChangePreview(
                             tui.requestRender();
                         }
                     },
-                    dispose: () => tui.setShowHardwareCursor(previousShowHardwareCursor),
+                    dispose: () => {
+                        hideController.dispose();
+                        tui.setShowHardwareCursor(previousShowHardwareCursor);
+                    },
                 };
             },
             {
@@ -1705,6 +1802,10 @@ export async function reviewChangePreview(
                     width: "96%",
                     minWidth: 20,
                     margin: 1,
+                },
+                onHandle: (handle) => {
+                    overlayHandle = handle;
+                    hider?.setHandle(handle);
                 },
             },
         );

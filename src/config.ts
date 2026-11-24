@@ -23,6 +23,7 @@ export interface DiffKeybindings {
 	toggleMode: string[] | false;
 	toggleWrap: string[] | false;
 	toggleExpand: string[] | false;
+	toggleHidden: string[] | false;
 	contextMore: string[] | false;
 	contextLess: string[] | false;
 }
@@ -44,6 +45,7 @@ export const DEFAULT_KEYBINDINGS: DiffKeybindings = {
 	toggleMode: ["Tab"],
 	toggleWrap: ["w"],
 	toggleExpand: ["ctrl+f"],
+	toggleHidden: ["alt+h"],
 	contextMore: ["right", "]"],
 	contextLess: ["left", "["],
 };
@@ -137,6 +139,7 @@ function parseKeybindings(value: unknown): DiffKeybindings {
 		toggleMode: parseKeybindingValue(raw.toggleMode, DEFAULT_KEYBINDINGS.toggleMode),
 		toggleWrap: parseKeybindingValue(raw.toggleWrap, DEFAULT_KEYBINDINGS.toggleWrap),
 		toggleExpand: parseKeybindingValue(raw.toggleExpand, DEFAULT_KEYBINDINGS.toggleExpand),
+		toggleHidden: parseKeybindingValue(raw.toggleHidden, DEFAULT_KEYBINDINGS.toggleHidden),
 		contextMore: parseKeybindingValue(raw.contextMore, DEFAULT_KEYBINDINGS.contextMore),
 		contextLess: parseKeybindingValue(raw.contextLess, DEFAULT_KEYBINDINGS.contextLess),
 	};
