@@ -98,6 +98,7 @@ Current config shape:
   "diffColorMode": "default",
   "showDiffRail": true,
   "defaultView": "split",
+  "pageScroll": "full",
   "expandableLayout": false,
   "collapsedHeight": "30%",
   "expandedHeight": "100%",
@@ -121,6 +122,7 @@ Diff marker options:
 View options:
 
 - `defaultView` — `split` (default) or `unified`; the view the diff modal opens in. `Tab` still toggles, and narrow terminals still fall back to unified.
+- `pageScroll` — `full` (default) or `half`; how far `PgUp` / `PgDn` move in the diff modal.
 
 Expandable layout options:
 

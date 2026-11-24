@@ -4,6 +4,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 export type DiffColorMode = "default" | "theme";
 export type DiffViewMode = "split" | "unified";
+export type PageScrollMode = "full" | "half";
 
 export interface DiffKeybindings {
 	approve: string[] | false;
@@ -52,6 +53,7 @@ export interface DiffApprovalConfig {
 	diffColorMode: DiffColorMode;
 	showDiffRail: boolean;
 	defaultView: DiffViewMode;
+	pageScroll: PageScrollMode;
 	expandableLayout: boolean;
 	collapsedHeight: string;
 	expandedHeight: string;
@@ -64,6 +66,7 @@ export const DEFAULT_CONFIG: DiffApprovalConfig = {
 	diffColorMode: "default",
 	showDiffRail: true,
 	defaultView: "split",
+	pageScroll: "full",
 	expandableLayout: false,
 	collapsedHeight: "30%",
 	expandedHeight: "100%",
@@ -79,6 +82,10 @@ function parseDiffColorMode(value: unknown): DiffColorMode {
 
 function parseDiffViewMode(value: unknown): DiffViewMode {
 	return value === "unified" ? "unified" : "split";
+}
+
+function parsePageScrollMode(value: unknown): PageScrollMode {
+	return value === "half" ? "half" : "full";
 }
 
 function formatPercent(value: number): string {
@@ -141,6 +148,7 @@ export function normalizeConfig(config: Partial<DiffApprovalConfig> = {}): DiffA
 		diffColorMode: parseDiffColorMode(config.diffColorMode),
 		showDiffRail: config.showDiffRail !== false,
 		defaultView: parseDiffViewMode(config.defaultView),
+		pageScroll: parsePageScrollMode(config.pageScroll),
 		expandableLayout: config.expandableLayout === true,
 		collapsedHeight: parsePercentConfig(config.collapsedHeight, DEFAULT_CONFIG.collapsedHeight),
 		expandedHeight: parsePercentConfig(config.expandedHeight, DEFAULT_CONFIG.expandedHeight),

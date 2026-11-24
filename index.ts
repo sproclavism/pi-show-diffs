@@ -39,6 +39,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			`Diff colors: ${config.diffColorMode}`,
 			`Diff rail: ${config.showDiffRail ? "on" : "off"}`,
 			`Default view: ${config.defaultView}`,
+			`Page scroll: ${config.pageScroll}`,
 			`Layout: ${config.expandableLayout ? "expandable" : "overlay"}`,
 			`Collapsed height: ${config.collapsedHeight}`,
 			`Expanded height: ${config.expandedHeight}`,
@@ -206,6 +207,13 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 				description: "View the diff modal opens in. Tab still toggles; narrow terminals fall back to unified.",
 			},
 			{
+				id: "pageScroll",
+				label: "Page scroll",
+				currentValue: config.pageScroll,
+				values: ["full", "half"],
+				description: "How far PgUp/PgDn move in the diff modal: a full or half viewport.",
+			},
+			{
 				id: "expandableLayout",
 				label: "Expandable layout",
 				currentValue: config.expandableLayout ? "on" : "off",
@@ -265,6 +273,9 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 					}
 					if (id === "defaultView") {
 						setConfig({ defaultView: newValue === "unified" ? "unified" : "split" }, ctx, false);
+					}
+					if (id === "pageScroll") {
+						setConfig({ pageScroll: newValue === "half" ? "half" : "full" }, ctx, false);
 					}
 					if (id === "expandableLayout") {
 						setConfig({ expandableLayout: newValue === "on" }, ctx, false);
@@ -473,6 +484,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			diffColorMode: config.diffColorMode,
 			showDiffRail: config.showDiffRail,
 			defaultView: config.defaultView,
+			pageScroll: config.pageScroll,
 			expandableLayout: config.expandableLayout,
 			collapsedHeight: config.collapsedHeight,
 			expandedHeight: config.expandedHeight,

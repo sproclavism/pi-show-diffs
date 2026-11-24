@@ -20,7 +20,7 @@ import {
     type StructuredDiffRow,
     type StructuredDiffVisibleItem,
 } from "./diff-utils.js";
-import { DEFAULT_KEYBINDINGS, type DiffColorMode, type DiffKeybindings, type DiffViewMode } from "./config.js";
+import { DEFAULT_KEYBINDINGS, type DiffColorMode, type DiffKeybindings, type DiffViewMode, type PageScrollMode } from "./config.js";
 import { rebuildPreviewAfterManualEdit, type ChangePreview } from "./preview.js";
 import { detectSyntaxLanguage, tokenizeSyntaxLine, type SyntaxSegment } from "./syntax-highlight.js";
 
@@ -35,6 +35,7 @@ interface ReviewOptions {
     diffColorMode?: DiffColorMode;
     showDiffRail?: boolean;
     defaultView?: DiffViewMode;
+    pageScroll?: PageScrollMode;
     expandableLayout?: boolean;
     collapsedHeight?: string;
     expandedHeight?: string;
@@ -350,6 +351,7 @@ class DiffViewer implements Component {
         private readonly expandableLayoutHint: boolean = false,
         keybindings?: DiffKeybindings,
         defaultView: ViewMode = "split",
+        private readonly pageScroll: PageScrollMode = "full",
     ) {
         this.kb = keybindings ?? DEFAULT_KEYBINDINGS;
         this.diffBackgrounds = getDiffBackgrounds(theme, diffColorMode);
@@ -362,6 +364,10 @@ class DiffViewer implements Component {
         this.preferredMode = preview.diffModel ? defaultView : "unified";
         this.syntaxLanguage = detectSyntaxLanguage(preview.path);
         this.fullContextLines = Math.max(preview.diffModel?.totalOldLines ?? 0, preview.diffModel?.totalNewLines ?? 0, 1);
+    }
+
+    private getPageStep(viewportHeight: number): number {
+        return this.pageScroll === "half" ? Math.max(1, Math.floor(viewportHeight / 2)) : viewportHeight;
     }
 
     invalidate(): void {
@@ -626,8 +632,8 @@ class DiffViewer implements Component {
             [kb.editInline, () => this.allowAfterEdit ? this.enterInlineEditMode() : false],
             [kb.scrollUp, () => this.setScrollOffset(this.scrollOffset - 1)],
             [kb.scrollDown, () => this.setScrollOffset(this.scrollOffset + 1)],
-            [kb.pageUp, () => this.setScrollOffset(this.scrollOffset - layout.viewportHeight)],
-            [kb.pageDown, () => this.setScrollOffset(this.scrollOffset + layout.viewportHeight)],
+            [kb.pageUp, () => this.setScrollOffset(this.scrollOffset - this.getPageStep(layout.viewportHeight))],
+            [kb.pageDown, () => this.setScrollOffset(this.scrollOffset + this.getPageStep(layout.viewportHeight))],
             [kb.scrollTop, () => this.setScrollOffset(0)],
             [kb.scrollBottom, () => this.setScrollOffset(layout.maxScrollOffset)],
             [kb.nextHunk, () => this.jumpToHunk(layout.currentHunkIndex + 1)],
@@ -1460,8 +1466,8 @@ class DiffViewer implements Component {
             if (matchesKey(data, "ctrl+n") || matchesKey(data, "alt+down")) {
                 return this.jumpInlineEditorToHunk(this.getCurrentInlineHunkIndex() + 1);
             }
-            if (matchesKey(data, "pageUp")) return this.setScrollOffset(this.scrollOffset - layout.viewportHeight);
-            if (matchesKey(data, "pageDown")) return this.setScrollOffset(this.scrollOffset + layout.viewportHeight);
+            if (matchesKey(data, "pageUp")) return this.setScrollOffset(this.scrollOffset - this.getPageStep(layout.viewportHeight));
+            if (matchesKey(data, "pageDown")) return this.setScrollOffset(this.scrollOffset + this.getPageStep(layout.viewportHeight));
             const lineNumberWidth = this.getLineNumberWidth();
             const contentWidth =
                 layout.mode === "split"
@@ -1555,6 +1561,7 @@ export async function reviewChangePreview(
     const diffColorMode = options.diffColorMode ?? "default";
     const showDiffRail = options.showDiffRail ?? true;
     const defaultView: ViewMode = options.defaultView === "unified" ? "unified" : "split";
+    const pageScroll: PageScrollMode = options.pageScroll === "half" ? "half" : "full";
     const expandableLayout = Boolean(options.expandableLayout);
     const collapsedHeightPercent = parsePercentOption(options.collapsedHeight, 30);
     const expandedHeightPercent = parsePercentOption(options.expandedHeight, 100);
@@ -1648,7 +1655,7 @@ export async function reviewChangePreview(
     if (!expandableLayout) {
         const decision = await ctx.ui.custom<DiffDecision>(
             (tui, theme, _kb, done) => {
-                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView);
+                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView, pageScroll);
                 const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
                 const previousShowHardwareCursor = tui.getShowHardwareCursor();
                 const syncCursorMode = () => tui.setShowHardwareCursor(viewer.isEditingInline() || previousShowHardwareCursor);
@@ -1722,6 +1729,7 @@ export async function reviewChangePreview(
                 true,
                 kb,
                 defaultView,
+                pageScroll,
             );
             const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
             const previousShowHardwareCursor = tui.getShowHardwareCursor();
@@ -1747,6 +1755,7 @@ export async function reviewChangePreview(
                             true,
                             kb,
                             defaultView,
+                            pageScroll,
                         );
                         overlayViewer = oViewer;
                         oViewer.setExpanded(true);
