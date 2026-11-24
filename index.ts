@@ -38,6 +38,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			`Mode: ${config.autoApprove ? t("mode.auto", "auto-approve") : t("mode.manual", "manual review")}`,
 			`Diff colors: ${config.diffColorMode}`,
 			`Diff rail: ${config.showDiffRail ? "on" : "off"}`,
+			`Default view: ${config.defaultView}`,
 			`Layout: ${config.expandableLayout ? "expandable" : "overlay"}`,
 			`Collapsed height: ${config.collapsedHeight}`,
 			`Expanded height: ${config.expandedHeight}`,
@@ -198,6 +199,13 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 				description: "Show a colored rail marker beside each rendered diff line.",
 			},
 			{
+				id: "defaultView",
+				label: "Default view",
+				currentValue: config.defaultView,
+				values: ["split", "unified"],
+				description: "View the diff modal opens in. Tab still toggles; narrow terminals fall back to unified.",
+			},
+			{
 				id: "expandableLayout",
 				label: "Expandable layout",
 				currentValue: config.expandableLayout ? "on" : "off",
@@ -254,6 +262,9 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 					}
 					if (id === "showDiffRail") {
 						setConfig({ showDiffRail: newValue === "on" }, ctx, false);
+					}
+					if (id === "defaultView") {
+						setConfig({ defaultView: newValue === "unified" ? "unified" : "split" }, ctx, false);
 					}
 					if (id === "expandableLayout") {
 						setConfig({ expandableLayout: newValue === "on" }, ctx, false);
@@ -461,6 +472,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			allowAfterEdit: true,
 			diffColorMode: config.diffColorMode,
 			showDiffRail: config.showDiffRail,
+			defaultView: config.defaultView,
 			expandableLayout: config.expandableLayout,
 			collapsedHeight: config.collapsedHeight,
 			expandedHeight: config.expandedHeight,

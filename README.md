@@ -97,6 +97,7 @@ Current config shape:
   "autoApprove": false,
   "diffColorMode": "default",
   "showDiffRail": true,
+  "defaultView": "split",
   "expandableLayout": false,
   "collapsedHeight": "30%",
   "expandedHeight": "100%",
@@ -116,6 +117,10 @@ Current config shape:
 Diff marker options:
 
 - `showDiffRail` — when `true`, show a colored `▌` rail marker next to rendered diff lines.
+
+View options:
+
+- `defaultView` — `split` (default) or `unified`; the view the diff modal opens in. `Tab` still toggles, and narrow terminals still fall back to unified.
 
 Expandable layout options:
 

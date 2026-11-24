@@ -20,7 +20,7 @@ import {
     type StructuredDiffRow,
     type StructuredDiffVisibleItem,
 } from "./diff-utils.js";
-import { DEFAULT_KEYBINDINGS, type DiffColorMode, type DiffKeybindings } from "./config.js";
+import { DEFAULT_KEYBINDINGS, type DiffColorMode, type DiffKeybindings, type DiffViewMode } from "./config.js";
 import { rebuildPreviewAfterManualEdit, type ChangePreview } from "./preview.js";
 import { detectSyntaxLanguage, tokenizeSyntaxLine, type SyntaxSegment } from "./syntax-highlight.js";
 
@@ -34,6 +34,7 @@ interface ReviewOptions {
     allowAfterEdit?: boolean;
     diffColorMode?: DiffColorMode;
     showDiffRail?: boolean;
+    defaultView?: DiffViewMode;
     expandableLayout?: boolean;
     collapsedHeight?: string;
     expandedHeight?: string;
@@ -41,7 +42,7 @@ interface ReviewOptions {
     keybindings?: DiffKeybindings;
 }
 
-type ViewMode = "split" | "unified";
+type ViewMode = DiffViewMode;
 type DiffTone = "toolDiffAdded" | "toolDiffRemoved" | "toolDiffContext";
 type ChangedDiffTone = Exclude<DiffTone, "toolDiffContext">;
 
@@ -348,6 +349,7 @@ class DiffViewer implements Component {
         private readonly expandedHeightPercent: number = 100,
         private readonly expandableLayoutHint: boolean = false,
         keybindings?: DiffKeybindings,
+        defaultView: ViewMode = "split",
     ) {
         this.kb = keybindings ?? DEFAULT_KEYBINDINGS;
         this.diffBackgrounds = getDiffBackgrounds(theme, diffColorMode);
@@ -357,7 +359,7 @@ class DiffViewer implements Component {
         this.baseDiffModel = preview.diffModel;
         this.diffModel = preview.diffModel;
         this.contextLines = preview.diffModel?.contextLines ?? 4;
-        this.preferredMode = preview.diffModel ? "split" : "unified";
+        this.preferredMode = preview.diffModel ? defaultView : "unified";
         this.syntaxLanguage = detectSyntaxLanguage(preview.path);
         this.fullContextLines = Math.max(preview.diffModel?.totalOldLines ?? 0, preview.diffModel?.totalNewLines ?? 0, 1);
     }
@@ -1552,6 +1554,7 @@ export async function reviewChangePreview(
         Boolean(options.allowAfterEdit) && preview.beforeText !== undefined && preview.afterText !== undefined;
     const diffColorMode = options.diffColorMode ?? "default";
     const showDiffRail = options.showDiffRail ?? true;
+    const defaultView: ViewMode = options.defaultView === "unified" ? "unified" : "split";
     const expandableLayout = Boolean(options.expandableLayout);
     const collapsedHeightPercent = parsePercentOption(options.collapsedHeight, 30);
     const expandedHeightPercent = parsePercentOption(options.expandedHeight, 100);
@@ -1645,7 +1648,7 @@ export async function reviewChangePreview(
     if (!expandableLayout) {
         const decision = await ctx.ui.custom<DiffDecision>(
             (tui, theme, _kb, done) => {
-                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb);
+                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView);
                 const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
                 const previousShowHardwareCursor = tui.getShowHardwareCursor();
                 const syncCursorMode = () => tui.setShowHardwareCursor(viewer.isEditingInline() || previousShowHardwareCursor);
@@ -1718,6 +1721,7 @@ export async function reviewChangePreview(
                 100,
                 true,
                 kb,
+                defaultView,
             );
             const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
             const previousShowHardwareCursor = tui.getShowHardwareCursor();
@@ -1742,6 +1746,7 @@ export async function reviewChangePreview(
                             expandedHeightPercent,
                             true,
                             kb,
+                            defaultView,
                         );
                         overlayViewer = oViewer;
                         oViewer.setExpanded(true);
