@@ -98,6 +98,7 @@ Current config shape:
   "autoApprove": false,
   "diffColorMode": "default",
   "showDiffRail": true,
+  "intralineHighlights": true,
   "defaultView": "split",
   "pageScroll": "full",
   "expandableLayout": false,
@@ -119,6 +120,7 @@ Current config shape:
 Diff marker options:
 
 - `showDiffRail` — when `true`, show a colored `▌` rail marker next to rendered diff lines.
+- `intralineHighlights` — when `true` (default), highlight the changed words/characters inside modified lines. Set to `false` to show only whole-line add/remove colors.
 
 View options:
 

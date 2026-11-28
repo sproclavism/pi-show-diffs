@@ -54,6 +54,7 @@ export interface DiffApprovalConfig {
 	autoApprove: boolean;
 	diffColorMode: DiffColorMode;
 	showDiffRail: boolean;
+	intralineHighlights: boolean;
 	defaultView: DiffViewMode;
 	pageScroll: PageScrollMode;
 	expandableLayout: boolean;
@@ -67,6 +68,7 @@ export const DEFAULT_CONFIG: DiffApprovalConfig = {
 	autoApprove: false,
 	diffColorMode: "default",
 	showDiffRail: true,
+	intralineHighlights: true,
 	defaultView: "split",
 	pageScroll: "full",
 	expandableLayout: false,
@@ -150,6 +152,7 @@ export function normalizeConfig(config: Partial<DiffApprovalConfig> = {}): DiffA
 		autoApprove: config.autoApprove === true,
 		diffColorMode: parseDiffColorMode(config.diffColorMode),
 		showDiffRail: config.showDiffRail !== false,
+		intralineHighlights: config.intralineHighlights !== false,
 		defaultView: parseDiffViewMode(config.defaultView),
 		pageScroll: parsePageScrollMode(config.pageScroll),
 		expandableLayout: config.expandableLayout === true,

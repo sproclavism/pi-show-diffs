@@ -37,6 +37,7 @@ interface ReviewOptions {
     allowAfterEdit?: boolean;
     diffColorMode?: DiffColorMode;
     showDiffRail?: boolean;
+    intralineHighlights?: boolean;
     defaultView?: DiffViewMode;
     pageScroll?: PageScrollMode;
     expandableLayout?: boolean;
@@ -357,6 +358,7 @@ class DiffViewer implements Component {
         keybindings?: DiffKeybindings,
         defaultView: ViewMode = "split",
         private readonly pageScroll: PageScrollMode = "full",
+        private readonly intralineHighlights: boolean = true,
     ) {
         this.kb = keybindings ?? DEFAULT_KEYBINDINGS;
         this.diffBackgrounds = getDiffBackgrounds(theme, diffColorMode);
@@ -929,7 +931,7 @@ class DiffViewer implements Component {
             return this.inlineEditMode ? CURSOR_MARKER : `${INLINE_CURSOR_OPEN} ${INLINE_CURSOR_CLOSE}`;
         }
 
-        const safeRanges = ranges
+        const safeRanges = (this.intralineHighlights ? ranges : [])
             .map((range) => ({
                 start: clampNumber(range.start, 0, chars.length),
                 end: clampNumber(range.end, 0, chars.length),
@@ -1644,6 +1646,7 @@ export async function reviewChangePreview(
         Boolean(options.allowAfterEdit) && preview.beforeText !== undefined && preview.afterText !== undefined;
     const diffColorMode = options.diffColorMode ?? "default";
     const showDiffRail = options.showDiffRail ?? true;
+    const intralineHighlights = options.intralineHighlights ?? true;
     const defaultView: ViewMode = options.defaultView === "unified" ? "unified" : "split";
     const pageScroll: PageScrollMode = options.pageScroll === "half" ? "half" : "full";
     const expandableLayout = Boolean(options.expandableLayout);
@@ -1741,7 +1744,7 @@ export async function reviewChangePreview(
         let overlayHandle: OverlayHandle | undefined;
         const decision = await ctx.ui.custom<DiffDecision>(
             (tui, theme, _kb, done) => {
-                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView, pageScroll);
+                const viewer = new DiffViewer(tui, theme, currentPreview, allowAfterEdit, diffColorMode, showDiffRail, 90, 100, false, kb, defaultView, pageScroll, intralineHighlights);
                 const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
                 const previousShowHardwareCursor = tui.getShowHardwareCursor();
                 const syncCursorMode = () => tui.setShowHardwareCursor(viewer.isEditingInline() || previousShowHardwareCursor);
@@ -1831,6 +1834,7 @@ export async function reviewChangePreview(
                 kb,
                 defaultView,
                 pageScroll,
+                intralineHighlights,
             );
             const framed = new BorderFrame(viewer, (text) => theme.fg("accent", text));
             const previousShowHardwareCursor = tui.getShowHardwareCursor();
@@ -1857,6 +1861,7 @@ export async function reviewChangePreview(
                             kb,
                             defaultView,
                             pageScroll,
+                            intralineHighlights,
                         );
                         overlayViewer = oViewer;
                         oViewer.setExpanded(true);

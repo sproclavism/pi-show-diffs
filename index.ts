@@ -38,6 +38,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			`Mode: ${config.autoApprove ? t("mode.auto", "auto-approve") : t("mode.manual", "manual review")}`,
 			`Diff colors: ${config.diffColorMode}`,
 			`Diff rail: ${config.showDiffRail ? "on" : "off"}`,
+			`Word highlights: ${config.intralineHighlights ? "on" : "off"}`,
 			`Default view: ${config.defaultView}`,
 			`Page scroll: ${config.pageScroll}`,
 			`Layout: ${config.expandableLayout ? "expandable" : "overlay"}`,
@@ -201,6 +202,13 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 				description: "Show a colored rail marker beside each rendered diff line.",
 			},
 			{
+				id: "intralineHighlights",
+				label: "Word highlights",
+				currentValue: config.intralineHighlights ? "on" : "off",
+				values: ["off", "on"],
+				description: "Highlight the changed words/characters inside modified lines.",
+			},
+			{
 				id: "defaultView",
 				label: "Default view",
 				currentValue: config.defaultView,
@@ -271,6 +279,9 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 					}
 					if (id === "showDiffRail") {
 						setConfig({ showDiffRail: newValue === "on" }, ctx, false);
+					}
+					if (id === "intralineHighlights") {
+						setConfig({ intralineHighlights: newValue === "on" }, ctx, false);
 					}
 					if (id === "defaultView") {
 						setConfig({ defaultView: newValue === "unified" ? "unified" : "split" }, ctx, false);
@@ -484,6 +495,7 @@ export default function showDiffsExtension(pi: ExtensionAPI) {
 			allowAfterEdit: true,
 			diffColorMode: config.diffColorMode,
 			showDiffRail: config.showDiffRail,
+			intralineHighlights: config.intralineHighlights,
 			defaultView: config.defaultView,
 			pageScroll: config.pageScroll,
 			expandableLayout: config.expandableLayout,
